@@ -1,0 +1,4 @@
+.venv
+.env
+new-blog-post.md
+_pycache_
