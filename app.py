@@ -4,6 +4,7 @@ import os
 
 load_dotenv()
 
+# Create the application instance
 app = create_app()
 
 if __name__ == "__main__":
