@@ -1,0 +1,38 @@
+services:
+  # Backend Flask API service
+  - type: web
+    name: blog-generator-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT 'app:create_app()'
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: app
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: API_KEY_SALT
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///instance/blog_app.sqlite
+
+  # Frontend Streamlit service
+  - type: web
+    name: blog-generator-frontend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run frontend.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: API_URL
+        fromService:
+          name: blog-generator-api
+          type: web
+          property: url
+        postfix: /api 
