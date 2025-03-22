@@ -1,9 +1,19 @@
 services:
+  # PostgreSQL Database
+  - type: pserv
+    name: blog-generator-db
+    env: docker
+    plan: free
+    disk:
+      name: postgres
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+
   # Backend Flask API service
   - type: web
     name: blog-generator-api
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && flask db upgrade
     startCommand: gunicorn --bind 0.0.0.0:$PORT 'app:create_app()'
     envVars:
       - key: PYTHON_VERSION
@@ -19,7 +29,10 @@ services:
       - key: API_KEY_SALT
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///instance/blog_app.sqlite
+        fromService:
+          type: pserv
+          name: blog-generator-db
+          property: connectionString
 
   # Frontend Streamlit service
   - type: web

@@ -12,3 +12,4 @@ gunicorn
 whitenoise
 Flask-Migrate
 flask-cors
+psycopg2-binary
