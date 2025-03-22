@@ -10,3 +10,5 @@ requests
 werkzeug
 gunicorn
 whitenoise
+Flask-Migrate
+flask-cors
