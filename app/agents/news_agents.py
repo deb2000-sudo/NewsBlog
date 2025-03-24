@@ -18,4 +18,4 @@ news_writer = Agent(
     engaging blog posts that are both informative and easy to understand.""",
     verbose=True,
     allow_delegation=False
-)
+) 

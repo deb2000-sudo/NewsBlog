@@ -1,7 +1,7 @@
 import os
-from crewai import Crew, Process
-from agents import news_researcher, news_writer
-from tasks import research_task, write_task
+from crewai import Crew, Process, Task
+from app.agents.news_agents import news_researcher, news_writer
+from app.utils.tools import tool
 
 def generate_blog_content(topic, salted_api_key):
     try:
@@ -29,6 +29,21 @@ def generate_blog_content(topic, salted_api_key):
         # Set the API key in the environment for the agents to use
         os.environ["OPENAI_API_KEY"] = actual_api_key
         
+        # Create tasks for the crew
+        research_task = Task(
+            description=f"Research the topic: {topic}. Focus on latest trends and key insights.",
+            expected_output="Comprehensive research notes",
+            agent=news_researcher,
+            tools=[tool]
+        )
+        
+        write_task = Task(
+            description=f"Write a blog post about: {topic}. Make it engaging and informative.",
+            expected_output="Complete blog post",
+            agent=news_writer,
+            tools=[tool]
+        )
+        
         # Create crew with the configured LLM
         crew = Crew(
             agents=[news_researcher, news_writer],
@@ -38,13 +53,8 @@ def generate_blog_content(topic, salted_api_key):
         )
         
         result = crew.kickoff(inputs={'topic': topic})
-        
-        # Ensure we get a string result
-        if result is None:
-            return "No content was generated. Please try again."
-            
-        return str(result)  # Ensure we return a string
+        return str(result)
         
     except Exception as e:
         print(f"Error in generate_blog_content: {str(e)}")
-        raise ValueError(f"Failed to generate blog content: {str(e)}") 
+        raise Exception(f"Failed to generate blog content: {str(e)}") 

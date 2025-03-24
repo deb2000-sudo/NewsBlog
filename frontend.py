@@ -29,36 +29,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
+# Initialize session state variables if they don't exist
 if 'access_token' not in st.session_state:
     st.session_state.access_token = None
-    
 if 'username' not in st.session_state:
     st.session_state.username = None
-
 if 'api_key' not in st.session_state:
     st.session_state.api_key = None
-
 if 'blogs' not in st.session_state:
     st.session_state.blogs = []
 
-# Check for stored auth data in localStorage
-try:
+# Try to load from localStorage on startup
+if not st.session_state.access_token:
     token, username, api_key = get_from_local_storage()
-    if token and not st.session_state.access_token:
+    if token:
         st.session_state.access_token = token
         st.session_state.username = username
         st.session_state.api_key = api_key
-        # Verify the token is valid
-        if not verify_token():
-            # If invalid, clear everything
-            st.session_state.access_token = None
-            st.session_state.username = None
-            st.session_state.api_key = None
-            st.session_state.blogs = []
-            clear_local_storage()
-except Exception as e:
-    print(f"Error initializing from localStorage: {e}")
 
 # Authentication functions
 def login(username, password):
@@ -140,43 +127,22 @@ def get_user_blogs():
         return []
 
 def generate_blog(topic):
-    if not st.session_state.access_token:
-        st.error("You must be logged in to generate blogs")
-        return None
-        
-    headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
     try:
         response = requests.post(
             f"{API_URL}/blogs/generate",
-            headers=headers,
-            json={"topic": topic}
+            json={"topic": topic},
+            headers={"Authorization": f"Bearer {st.session_state.access_token}"}
         )
         
         if response.status_code == 201:
-            data = response.json()
-            # Refresh the blogs list
-            st.session_state.blogs = get_user_blogs()
-            return data['blog']
+            return response.json()['blog']
         else:
-            try:
-                error_message = response.json().get('error', 'Unknown error')
-            except:
-                error_message = f"Status code: {response.status_code}"
-                
-            if response.status_code == 401:
-                # Handle unauthorized errors specifically
-                st.warning("Your session has expired. Please log in again.")
-                st.session_state.access_token = None
-                st.session_state.username = None
-                st.session_state.api_key = None
-                st.session_state.blogs = []
-                st.rerun()
-            else:
-                st.error(f"Blog generation failed: {error_message}")
-            return None
+            error_msg = response.json().get('error', 'Unknown error occurred')
+            raise Exception(error_msg)
+    except requests.RequestException as e:
+        raise Exception(f"Network error: {str(e)}")
     except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return None
+        raise Exception(f"Error generating blog: {str(e)}")
 
 def refresh_token():
     """Refresh the access token"""
@@ -351,20 +317,26 @@ def verify_token():
         
     headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
     try:
-        # Try to get user blogs as a simple verification
-        response = requests.get(f"{API_URL}/blogs/", headers=headers)
-        valid = response.status_code == 200
-        
-        # If token is invalid, clear session
-        if not valid and response.status_code == 401:
-            st.session_state.access_token = None
-            st.session_state.username = None
-            st.session_state.api_key = None
-            st.session_state.blogs = []
+        # First verify token with the check-token endpoint
+        response = requests.get(f"{API_URL}/auth/check-token", headers=headers)
+        if response.status_code != 200:
+            clear_session_state()
+            return False
             
-        return valid
-    except:
+        return True
+    except Exception as e:
+        print(f"Error verifying token: {str(e)}")
+        clear_session_state()
         return False
+
+def clear_session_state():
+    """Clear all session state variables"""
+    st.session_state.access_token = None
+    st.session_state.username = None
+    st.session_state.api_key = None
+    st.session_state.blogs = []
+    # Clear localStorage
+    clear_local_storage()
 
 if __name__ == "__main__":
     main() 

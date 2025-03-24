@@ -6,13 +6,21 @@ import os
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     
+    # Ensure encryption key is available
+    if not os.environ.get('ENCRYPTION_KEY'):
+        raise ValueError("ENCRYPTION_KEY not set in environment variables")
+    
     # Configuration
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_key'),
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(app.instance_path, 'blog_app.sqlite')}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', 'jwt_dev_key'),
-        JWT_ACCESS_TOKEN_EXPIRES=86400
+        JWT_ACCESS_TOKEN_EXPIRES=86400,
+        JWT_TOKEN_LOCATION=['headers'],
+        JWT_HEADER_NAME='Authorization',
+        JWT_HEADER_TYPE='Bearer',
+        JWT_ERROR_MESSAGE_KEY='error'
     )
     
     if test_config:

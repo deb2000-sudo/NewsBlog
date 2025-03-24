@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, User, Blog
-from ..services.crew_service import generate_blog_content
+from app.models import db, User, Blog
+from app.services.crew_service import generate_blog_content
+from app.routes.auth import cipher_suite  # Import the cipher_suite from auth.py
 
 bp = Blueprint('blogs', __name__, url_prefix='/api/blogs')
 
@@ -9,40 +10,29 @@ bp = Blueprint('blogs', __name__, url_prefix='/api/blogs')
 @jwt_required()
 def generate_blog():
     print("Generate blog endpoint called")
-    # Log the authorization header to check format
-    auth_header = request.headers.get('Authorization', '')
-    print(f"Authorization header: {auth_header}")
     
     user_id = get_jwt_identity()
-    print(f"User ID from JWT: {user_id}")
-    
-    user = User.query.get(user_id)
+    user = User.query.get(int(user_id))  # Convert string ID to integer
     
     if not user:
-        print(f"User with ID {user_id} not found in database")
         return jsonify({"error": "User not found"}), 404
     
     if not user.api_key:
-        print(f"User {user.username} has no API key set")
         return jsonify({"error": "API key not set"}), 400
     
-    data = request.json
-    if not data or not data.get('topic'):
-        print(f"Invalid request data: {data}")
-        return jsonify({"error": "Blog topic required"}), 400
-    
     try:
-        print(f"Attempting to generate blog about: {data['topic']}")
-        # Generate blog using CrewAI service
-        blog_content = generate_blog_content(data['topic'], user.api_key)
+        # Decrypt the API key
+        decrypted_api_key = cipher_suite.decrypt(user.api_key).decode()
         
-        # Ensure blog content is not empty
+        data = request.json
+        if not data or not data.get('topic'):
+            return jsonify({"error": "Blog topic required"}), 400
+        
+        blog_content = generate_blog_content(data['topic'], decrypted_api_key)
+        
         if not blog_content:
-            print("No blog content was generated")
             return jsonify({"error": "Failed to generate blog content"}), 500
         
-        print("Blog content generated successfully, saving to database")
-        # Save blog to database
         new_blog = Blog(
             topic=data['topic'],
             content=blog_content,
@@ -51,21 +41,13 @@ def generate_blog():
         db.session.add(new_blog)
         db.session.commit()
         
-        print(f"New blog saved with ID: {new_blog.id}")
         return jsonify({
             "message": "Blog generated successfully",
-            "blog": {
-                "id": new_blog.id,
-                "topic": new_blog.topic,
-                "content": blog_content,
-                "created_at": new_blog.created_at.isoformat() if hasattr(new_blog.created_at, 'isoformat') else str(new_blog.created_at)
-            }
+            "blog": new_blog.to_dict()
         }), 201
-    
+        
     except Exception as e:
-        import traceback
         print(f"Error generating blog: {str(e)}")
-        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 @bp.route('/', methods=['GET'])
