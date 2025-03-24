@@ -11,25 +11,23 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 def register():
     data = request.json
     
-    # Validate input (Both OpenAI and Serper API keys are required)
-    if not data or not data.get('username') or not data.get('email') or not data.get('password') or not data.get('api_key') or not data.get('serper_api_key'):
-        return jsonify({"error": "Missing required fields. Username, email, password, OpenAI API key, and Serper API key are all required."}), 400
+    # Validate input
+    if not data or not data.get('username') or not data.get('email') or not data.get('password') or not data.get('api_key'):
+        return jsonify({"error": "Missing required fields. Username, email, password, and OpenAI API key are required."}), 400
     
     # Check if user exists
     if User.query.filter_by(username=data['username']).first() or User.query.filter_by(email=data['email']).first():
         return jsonify({"error": "Username or email already exists"}), 409
     
-    # Add salt to API keys for additional security
+    # Add salt to API key for additional security
     api_key_salt = os.environ.get('API_KEY_SALT', 'default_salt_value')
     salted_api_key = data['api_key'] + api_key_salt
-    salted_serper_api_key = data['serper_api_key'] + api_key_salt
     
     # Create new user
     new_user = User(
         username=data['username'],
         email=data['email'],
-        api_key=salted_api_key,
-        serper_api_key=salted_serper_api_key
+        api_key=salted_api_key
     )
     new_user.set_password(data['password'])
     
@@ -59,8 +57,7 @@ def login():
         print(f"Invalid password for user: {data.get('username')}")
         return jsonify({"error": "Invalid credentials"}), 401
     
-    # Convert user.id to string to avoid "Subject must be a string" error
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=user.id)
     print(f"Login successful for user: {user.username} (ID: {user.id})")
     
     return jsonify({
@@ -68,8 +65,7 @@ def login():
         "user": {
             "username": user.username,
             "email": user.email,
-            "api_key": user.api_key,
-            "serper_api_key": user.serper_api_key
+            "api_key": user.api_key
         }
     }), 200
 
@@ -77,11 +73,6 @@ def login():
 @jwt_required()
 def update_api_key():
     user_id = get_jwt_identity()
-    
-    # Convert user_id to integer if it's a string
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_id = int(user_id)
-        
     user = User.query.get(user_id)
     
     if not user:
@@ -99,33 +90,6 @@ def update_api_key():
     db.session.commit()
     
     return jsonify({"message": "API key updated successfully"}), 200
-
-@bp.route('/update-serper-api-key', methods=['PUT'])
-@jwt_required()
-def update_serper_api_key():
-    user_id = get_jwt_identity()
-    
-    # Convert user_id to integer if it's a string
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_id = int(user_id)
-        
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    
-    data = request.json
-    if not data or not data.get('serper_api_key'):
-        return jsonify({"error": "Serper API key required"}), 400
-    
-    # Add salt to API key for additional security
-    api_key_salt = os.environ.get('API_KEY_SALT', 'default_salt_value')
-    salted_serper_api_key = data['serper_api_key'] + api_key_salt
-    
-    user.serper_api_key = salted_serper_api_key
-    db.session.commit()
-    
-    return jsonify({"message": "Serper API key updated successfully"}), 200
 
 @bp.route('/refresh', methods=['POST'])
 @jwt_required()

@@ -16,10 +16,6 @@ def generate_blog():
     user_id = get_jwt_identity()
     print(f"User ID from JWT: {user_id}")
     
-    # Convert user_id to integer if it's a string
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_id = int(user_id)
-    
     user = User.query.get(user_id)
     
     if not user:
@@ -27,12 +23,8 @@ def generate_blog():
         return jsonify({"error": "User not found"}), 404
     
     if not user.api_key:
-        print(f"User {user.username} has no OpenAI API key set")
-        return jsonify({"error": "OpenAI API key not set"}), 400
-        
-    if not user.serper_api_key:
-        print(f"User {user.username} has no Serper API key set")
-        return jsonify({"error": "Serper API key not set"}), 400
+        print(f"User {user.username} has no API key set")
+        return jsonify({"error": "API key not set"}), 400
     
     data = request.json
     if not data or not data.get('topic'):
@@ -41,8 +33,8 @@ def generate_blog():
     
     try:
         print(f"Attempting to generate blog about: {data['topic']}")
-        # Generate blog using CrewAI service - pass both API keys
-        blog_content = generate_blog_content(data['topic'], user.api_key, user.serper_api_key)
+        # Generate blog using CrewAI service
+        blog_content = generate_blog_content(data['topic'], user.api_key)
         
         # Ensure blog content is not empty
         if not blog_content:
@@ -82,10 +74,6 @@ def get_blogs():
     user_id = get_jwt_identity()
     print(f"Getting blogs for user ID: {user_id}")
     
-    # Convert user_id to integer if it's a string (from the JWT token)
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_id = int(user_id)
-    
     user = User.query.get(user_id)
     if not user:
         print(f"User with ID {user_id} not found in database")
@@ -109,10 +97,6 @@ def get_blogs():
 @jwt_required()
 def get_blog(blog_id):
     user_id = get_jwt_identity()
-    
-    # Convert user_id to integer if it's a string
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_id = int(user_id)
     
     blog = Blog.query.filter_by(id=blog_id, user_id=user_id).first()
     

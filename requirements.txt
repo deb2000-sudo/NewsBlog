@@ -1,5 +1,6 @@
 crewai
 langchain_google_genai
+load_dotenv
 python-dotenv
 crewai_tools
 streamlit
@@ -8,8 +9,3 @@ flask-sqlalchemy
 flask-jwt-extended
 requests
 werkzeug
-gunicorn
-whitenoise
-Flask-Migrate
-flask-cors
-psycopg2-binary

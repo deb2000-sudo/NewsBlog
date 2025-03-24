@@ -9,8 +9,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    api_key = db.Column(db.String(100), nullable=False)  # OpenAI API key - not nullable
-    serper_api_key = db.Column(db.String(100), nullable=False)  # Serper API key - not nullable
+    api_key = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     blogs = db.relationship('Blog', backref='author', lazy=True)

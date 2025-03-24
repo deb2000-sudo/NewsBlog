@@ -1,23 +1,22 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
-from flask_cors import CORS
-from flask_migrate import Migrate
 from .models import db
 import os
-from config import config as app_config
 
-def create_app(config_name=None):
+def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     
-    # Add CORS support
-    CORS(app)
+    # Configuration
+    app.config.from_mapping(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_key'),
+        SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(app.instance_path, 'blog_app.sqlite')}",
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', 'jwt_dev_key'),
+        JWT_ACCESS_TOKEN_EXPIRES=86400
+    )
     
-    # Determine configuration to use
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
-    
-    # Load the configuration
-    app.config.from_object(app_config[config_name])
+    if test_config:
+        app.config.update(test_config)
     
     # Ensure instance folder exists
     try:
@@ -27,7 +26,6 @@ def create_app(config_name=None):
     
     # Initialize extensions
     db.init_app(app)
-    migrate = Migrate(app, db)
     jwt = JWTManager(app)
     
     # Add JWT error handler
@@ -67,9 +65,5 @@ def create_app(config_name=None):
     # Create database tables
     with app.app_context():
         db.create_all()
-        
-    @app.route('/')
-    def index():
-        return jsonify({"message": "Blog Generator API is running"}), 200
         
     return app 
